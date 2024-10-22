@@ -6,6 +6,8 @@ import torch
 import network
 import functools
 
+from pathlib import Path
+
 from backend.args import dynamic_args
 from modules import shared, sd_models, errors, scripts
 from backend.utils import load_torch_file
@@ -128,7 +130,18 @@ def load_networks(names, te_multipliers=None, unet_multipliers=None, dyn_dims=No
 
 
 def process_network_files(names: list[str] | None = None):
-    candidates = list(shared.walk_files(shared.cmd_opts.lora_dir, allowed_extensions=[".pt", ".ckpt", ".safetensors"]))
+
+    # ---------------------------
+    import modules.ui_extra_networks as extraNet
+
+    if shared.cmd_opts.multiUser: # Only in multiuser mode, we are skipping the networks that aren't in the common folder / aren't in the user's folder
+        path_user = Path(shared.cmd_opts.lora_dir) / extraNet.pseudo
+        path_common = Path(shared.cmd_opts.lora_dir) / "common"
+        candidates =  list(shared.walk_files(path_user, allowed_extensions=[".pt", ".ckpt", ".safetensors"]))
+        candidates += list(shared.walk_files(path_common, allowed_extensions=[".pt", ".ckpt", ".safetensors"]))
+    else:
+        candidates = list(shared.walk_files(shared.cmd_opts.lora_dir, allowed_extensions=[".pt", ".ckpt", ".safetensors"]))
+    
     for filename in candidates:
         if os.path.isdir(filename):
             continue
