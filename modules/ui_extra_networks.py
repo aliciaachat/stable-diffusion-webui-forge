@@ -21,6 +21,15 @@ extra_pages = []
 allowed_dirs = set()
 default_allowed_preview_extensions = ["png", "jpg", "jpeg", "webp", "gif"]
 
+global pseudo
+pseudo = "None"
+def callPseudonym(req:gr.Request):
+    global pseudo
+    pseudo = req.username
+    # Allowed dirs update to be able to crawl inside user lora directory
+    allowed_dirs.clear()
+    allowed_dirs.update(set(sum([x.allowed_directories_for_previews() for x in extra_pages], [])))
+
 @functools.cache
 def allowed_preview_extensions_with_extra(extra_extensions=None):
     return set(default_allowed_preview_extensions) | set(extra_extensions or [])
@@ -344,11 +353,11 @@ class ExtraNetworksPage:
         args = {
             "background_image": background_image,
             "card_clicked": onclick,
-            "copy_path_button": btn_copy_path,
+            "copy_path_button":  '', #btn_copy_path,
             "description": description,
-            "edit_button": btn_edit_item,
+            "edit_button":  '', #btn_edit_item,
             "local_preview": quote_js(item["local_preview"]),
-            "metadata_button": btn_metadata,
+            "metadata_button":  '', #btn_metadata,
             "name": html.escape(item["name"]),
             "prompt": item.get("prompt", None),
             "save_card_preview": html.escape(f"return saveCardPreview(event, '{tabname}', '{item['local_preview']}');"),
@@ -792,9 +801,18 @@ def create_ui(interface: gr.Blocks, unrelated_tabs, tabname):
                 pg.refresh()
             create_html()
             return ui.pages_contents
+        
+        def pagesWrp(req:gr.Request):
+            callPseudonym(req)
+            return pages_html()
+        
+        def refWrp(req:gr.Request):
+            callPseudonym(req)
+            return refresh()    
 
         button_refresh = gr.Button("Refresh", elem_id=f"{tabname}_{page.extra_networks_tabname}_extra_refresh_internal", visible=False)
-        button_refresh.click(fn=refresh, inputs=[], outputs=ui.pages).then(fn=lambda: None, _js="function(){ " + f"applyExtraNetworkFilter('{tabname}_{page.extra_networks_tabname}');" + " }").then(fn=lambda: None, _js='setupAllResizeHandles')
+        button_refresh.click(fn=refWrp, inputs=[], outputs=ui.pages).then(fn=lambda: None, _js="function(){ " + f"applyExtraNetworkFilter('{tabname}_{page.extra_networks_tabname}');" + " }").then(fn=lambda: None, _js='setupAllResizeHandles')
+        tab.select(fn=refWrp, inputs=[], outputs=ui.pages)
 
     def create_html():
         ui.pages_contents = [pg.create_html(ui.tabname) for pg in ui.stored_extra_pages]
@@ -804,7 +822,7 @@ def create_ui(interface: gr.Blocks, unrelated_tabs, tabname):
             create_html()
         return ui.pages_contents
 
-    interface.load(fn=pages_html, inputs=[], outputs=ui.pages).then(fn=lambda: None, _js='setupAllResizeHandles')
+    interface.load(fn=pagesWrp, inputs=[], outputs=ui.pages).then(fn=lambda: None, _js='setupAllResizeHandles')
 
     return ui
 

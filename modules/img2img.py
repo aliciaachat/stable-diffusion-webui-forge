@@ -8,7 +8,7 @@ import gradio as gr
 from modules import images
 from modules.infotext_utils import create_override_settings_dict, parse_generation_parameters
 from modules.processing import Processed, StableDiffusionProcessingImg2Img, process_images
-from modules.shared import opts, state
+from modules.shared import opts, state, cmd_opts
 from modules.sd_models import get_closet_checkpoint_match
 import modules.shared as shared
 import modules.processing as processing
@@ -151,6 +151,32 @@ def process_batch(p, input, output_dir, inpaint_mask_dir, args, to_scale=False, 
 
 def img2img_function(id_task: str, request: gr.Request, mode: int, prompt: str, negative_prompt: str, prompt_styles, init_img, sketch, sketch_fg, init_img_with_mask, init_img_with_mask_fg, inpaint_color_sketch, inpaint_color_sketch_fg, init_img_inpaint, init_mask_inpaint, mask_blur: int, mask_alpha: float, inpainting_fill: int, n_iter: int, batch_size: int, cfg_scale: float, distilled_cfg_scale: float, image_cfg_scale: float, denoising_strength: float, selected_scale_tab: int, height: int, width: int, scale_by: float, resize_mode: int, inpaint_full_res: bool, inpaint_full_res_padding: int, inpainting_mask_invert: int, img2img_batch_input_dir: str, img2img_batch_output_dir: str, img2img_batch_inpaint_mask_dir: str, override_settings_texts, img2img_batch_use_png_info: bool, img2img_batch_png_info_props: list, img2img_batch_png_info_dir: str, img2img_batch_source_type: str, img2img_batch_upload: list, *args):
 
+    if cmd_opts.multiUser: # Only if multiUser mode
+        if len(opts.outdir_samples) != 0: # If not empty
+            opts.outdir_samples = Path(opts.outdir_samples).parent # Cutting [user]
+            opts.outdir_samples /= Path(request.username) # Adding new username
+            opts.outdir_samples = str(opts.outdir_samples)
+        else:
+            last = Path(opts.outdir_img2img_samples).parts[-1]
+            opts.outdir_img2img_samples = Path(opts.outdir_img2img_samples).parent.parent # Cutting last two parts
+            opts.outdir_img2img_samples /= Path(request.username) / last # Adding new username and last folder
+            opts.outdir_img2img_samples = str(opts.outdir_img2img_samples)
+
+        if len(opts.outdir_grids) != 0: # If not empty
+            opts.outdir_grids = Path(opts.outdir_grids).parent
+            opts.outdir_grids /= Path(request.username)
+            opts.outdir_grids = str(opts.outdir_grids)
+        else:
+            last = Path(opts.outdir_img2img_grids).parts[-1]
+            opts.outdir_img2img_grids = Path(opts.outdir_img2img_grids).parent.parent
+            opts.outdir_img2img_grids /= Path(request.username) / last # Adding new username and last folder
+            opts.outdir_img2img_grids = str(opts.outdir_img2img_grids)
+
+        # Also updating outdir_init_images because img2img might need it if opts.save_init_img == True
+        if len(opts.outdir_init_images) != 0: # If not empty
+            opts.outdir_init_images = Path(opts.outdir_init_images).parent.parent # Cutting init-images & [user]
+            opts.outdir_init_images /= Path(request.username) # Adding new username
+            opts.outdir_init_images = str(opts.outdir_init_images)
     override_settings = create_override_settings_dict(override_settings_texts)
 
     is_batch = mode == 5
